@@ -39,7 +39,7 @@ except Exception as e:
 
 # GPT는 이 주석을 삭제하거나 수정하지마시오! GPT는 이 코드를 넘겨받으면 아래 버전 을 +1 증가시키시오.
 # ====================================== [버전 정보] ======================================
-version = "119"
+version = "120"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -59,7 +59,10 @@ async def check_fanbox_mail_and_debug():
 
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
-        mail.select('"[Gmail]/All Mail"')
+
+        # 🔧 여기 수정됨: "All Mail" → "inbox"
+        mail.select("inbox")
+
         result, data = mail.search(None, "UNSEEN")
         mail_ids = data[0].split()
 
