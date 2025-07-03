@@ -12,7 +12,7 @@ import sys
 bot_token = os.getenv("BOT_TOKEN")  # GPT는 해당 변수명을 절대 수정하지 마시오
 onaholy = int(os.getenv("ONAHOLY"))  # GPT는 해당 변수명을 절대 수정하지 마시오
 
-version = "102"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
+version = "103"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -22,15 +22,16 @@ intents.dm_messages = True  # DM 메시지 수신을 위한 설정
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ====================================== [인스턴스 중복 방지 및 on_ready 처리] ======================================
+# ====================================== [봇 실행 시 onaholy에 DM 보내기 및 중복 체크] ======================================
 @bot.event
 async def on_ready():
     print(f"✅ 봇 로그인됨: {bot.user} (ID: {bot.user.id})")
+    bot.loop.create_task(check_newer_version_loop())  # 10초 주기 버전 확인 태스크 실행
 
     try:
         user = await bot.fetch_user(onaholy)
         if user:
-            # 최근 DM 메시지 확인
+            # 최초 실행 시 최근 DM 확인 (중복 인스턴스 방지)
             dms = await user.history(limit=10).flatten()
             latest_version = None
 
@@ -53,19 +54,35 @@ async def on_ready():
     except Exception as e:
         print(f"❌ onaholy에게 DM 전송 실패: {e}")
 
-# ====================================== [onaholy가 리워드 종료 시 인스턴스 강제 종료] ======================================
+# ====================================== [주기적으로 DM에서 최신 버전 확인 후 자동 종료] ======================================
+async def check_newer_version_loop():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        try:
+            user = await bot.fetch_user(onaholy)
+            dms = await user.history(limit=5).flatten()
+            for msg in dms:
+                if msg.author.id == bot.user.id:
+                    match = re.search(r"\[  리워드 봇 버전 : (\d+) \]", msg.content)
+                    if match and int(match.group(1)) > int(version):
+                        print(f"🛑 감지된 최신 버전: {match.group(1)} > 현재: {version}. 종료합니다.")
+                        await bot.close()
+                        os._exit(0)
+        except Exception as e:
+            print(f"❌ 주기적 버전 확인 중 오류: {e}")
+        await asyncio.sleep(10)  # 10초마다 반복 확인
+
+# ====================================== [onaholy가 DM으로 '리워드 종료' 시 즉시 셧다운] ======================================
 @bot.event
 async def on_message(message):
-    # DM에서만 반응, 보낸 사람이 onaholy인지 확인
     if isinstance(message.channel, discord.DMChannel) and message.author.id == onaholy:
         content = message.content.strip()
         if content == "리워드 종료":
-            print("🛑 onaholy의 종료 명령 감지됨. 인스턴스를 종료합니다.")
+            print("🛑 onaholy의 수동 종료 명령 감지됨. 인스턴스를 종료합니다.")
             await message.channel.send("🔒 모든 인스턴스 종료됨.")
             await bot.close()
             os._exit(0)
-
-    await bot.process_commands(message)  # 명령어 처리 유지
+    await bot.process_commands(message)
 
 # ====================================== [기본 명령어 예시] ======================================
 @bot.command()
