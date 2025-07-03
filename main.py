@@ -7,12 +7,13 @@ import asyncio
 import os
 import re
 import sys
+import requests
 
 print("📦 모듈 임포트 완료")
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
-    bot_token = os.getenv("BOT_TOKEN")  # GPT는 해당 변수명을 절대 수정하지 마시오
+    bot_token = os.getenv("BOT_TOKEN")
     if not bot_token:
         raise ValueError("❌ BOT_TOKEN 환경변수가 비어있습니다.")
     print("✅ BOT_TOKEN 로딩 성공")
@@ -20,15 +21,20 @@ try:
     onaholy_str = os.getenv("ONAHOLY")
     if not onaholy_str:
         raise ValueError("❌ ONAHOLY 환경변수가 비어있습니다.")
-
-    onaholy = int(onaholy_str)  # GPT는 해당 변수명을 절대 수정하지 마시오
+    onaholy = int(onaholy_str)
     print(f"✅ ONAHOLY 로딩 성공: {onaholy}")
+
+    fanbox_token = os.getenv("FANBOX_TOKEN")
+    if not fanbox_token:
+        print("⚠️ FANBOX_TOKEN 환경변수가 비어있습니다. list 기능이 제한됩니다.")
+    else:
+        print("✅ FANBOX_TOKEN 로딩 성공")
 
 except Exception as e:
     print(f"❌ 환경변수 로딩 오류: {e}")
     sys.exit(1)
 
-version = "108"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
+version = "109"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -45,7 +51,6 @@ async def on_ready():
     bot.loop.create_task(check_newer_version_loop())
 
     try:
-        print(f"📌 ONAHOLY 환경변수: {onaholy}")
         user = bot.get_user(onaholy)
         if not user:
             print("ℹ️ get_user 실패, fetch_user 시도 중...")
@@ -54,29 +59,6 @@ async def on_ready():
         print(f"📌 onaholy 유저 객체: {user}")
 
         if user:
-            print("📩 DM 기록 가져오는 중...")
-            dms = await user.history(limit=10).flatten()
-            latest_version = None
-
-            for msg in dms:
-                if msg.author.id == bot.user.id:
-                    match = re.search(r"\[  리워드 봇 버전 : (\d+) \]", msg.content)
-                    if match:
-                        latest_version = match.group(1)
-                        break
-
-            if latest_version and int(latest_version) > int(version):
-                print(f"❌ 중복 인스턴스 감지됨. 종료.")
-                try:
-                    await user.send(f"🔴 중복 방지: 현재 실행된 [{version}] 인스턴스가 [{latest_version}]보다 낮아 종료됨.")
-                except discord.Forbidden:
-                    print("🚫 DM 전송 실패: 권한 없음 (DM 차단 중일 가능성)")
-                except Exception as e:
-                    print(f"❌ DM 전송 중 예외 발생: {e}")
-                await bot.close()
-                os._exit(0)
-
-            print("📩 onaholy에게 버전 알림 전송 중...")
             try:
                 await user.send(f"[  리워드 봇 버전 : {version} ]")
                 print("✅ 버전 DM 전송 완료")
@@ -84,7 +66,6 @@ async def on_ready():
                 print("🚫 DM 전송 실패: 권한 없음 (DM 차단 중일 가능성)")
             except Exception as e:
                 print(f"❌ DM 전송 중 예외 발생: {e}")
-
         else:
             print("❌ fetch_user 결과가 None입니다.")
 
@@ -112,12 +93,12 @@ async def check_newer_version_loop():
             print(f"❌ 주기적 버전 확인 중 오류: {e}")
         await asyncio.sleep(10)
 
-# ====================================== [onaholy가 DM으로 '리워드 종료' 시 즉시 셧다운] ======================================
+# ====================================== [onaholy가 DM으로 list 시 FANBOX 후원자 출력] ======================================
 @bot.event
 async def on_message(message):
     if isinstance(message.channel, discord.DMChannel):
         if message.author.id == onaholy:
-            content = message.content.strip()
+            content = message.content.strip().lower()
 
             if content == "리워드 종료":
                 print("🛑 onaholy의 수동 종료 명령 감지됨. 인스턴스를 종료합니다.")
@@ -125,12 +106,43 @@ async def on_message(message):
                 await bot.close()
                 os._exit(0)
 
-            elif content.lower() == "list":
+            elif content == "list":
                 try:
-                    await message.channel.send("✅ 후원자 목록:\n- 예시1\n- 예시2\n(실제 구현 필요)")
-                    print("📩 onaholy에게 후원자 목록 전송됨")
+                    if not fanbox_token:
+                        await message.channel.send("❌ 환경변수 FANBOX_TOKEN이 설정되지 않았습니다.")
+                        return
+
+                    headers = {
+                        "User-Agent": "Mozilla/5.0",
+                        "Cookie": fanbox_token
+                    }
+
+                    url = "https://api.fanbox.cc/plan.supporters?limit=100"
+                    res = requests.get(url, headers=headers)
+
+                    if res.status_code != 200:
+                        await message.channel.send(f"❌ FANBOX 요청 실패 (상태 코드 {res.status_code})")
+                        return
+
+                    data = res.json()
+                    supporters = data.get("supporters", [])
+
+                    if not supporters:
+                        await message.channel.send("📭 현재 후원자가 없습니다.")
+                        return
+
+                    lines = [f"- {s['user']['name']} ({s['user']['userId']})" for s in supporters]
+                    chunks = [lines[i:i+20] for i in range(0, len(lines), 20)]
+
+                    await message.channel.send(f"✅ 총 {len(supporters)}명의 후원자를 확인했습니다.")
+                    for chunk in chunks:
+                        await message.channel.send("\n".join(chunk))
+
+                    print("📩 후원자 목록 전송 완료")
+
                 except Exception as e:
-                    print(f"❌ 후원자 목록 전송 실패: {e}")
+                    print(f"❌ 후원자 목록 처리 중 오류: {e}")
+                    await message.channel.send("❌ 후원자 목록을 불러오는 중 오류가 발생했습니다.")
 
     await bot.process_commands(message)
 
