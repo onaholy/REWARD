@@ -39,7 +39,7 @@ except Exception as e:
 
 # GPT는 이 주석을 삭제하거나 수정하지마시오! GPT는 이 코드를 넘겨받으면 아래 버전 을 +1 증가시키시오.
 # ====================================== [버전 정보] ======================================
-version = "118"
+version = "119"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -51,22 +51,27 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 last_uid = None
 
 # ====================================== [Gmail에서 FANBOX 알림 감지 함수] ======================================
-def check_fanbox_mail():
+async def check_fanbox_mail_and_debug():
     global last_uid
     try:
+        user = await bot.fetch_user(onaholy)
+        await user.send("🔄 Gmail 체크 시작됨")
+
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
         mail.select('"[Gmail]/All Mail"')
         result, data = mail.search(None, "UNSEEN")
         mail_ids = data[0].split()
+
         if not mail_ids:
-            print("📭 새 메일 없음")
+            await user.send("📭 Gmail: 새 메일 없음")
             return []
 
         matched_subjects = []
 
         for i in mail_ids[-5:]:  # 최근 5개만 검사
             if i == last_uid:
+                await user.send("⏩ 이미 처리한 메일 UID, 건너뜀")
                 continue
 
             result, data = mail.fetch(i, "(RFC822)")
@@ -82,20 +87,22 @@ def check_fanbox_mail():
                     subject_parts.append(part)
             subject = ''.join(subject_parts).strip()
 
-            print(f"🔍 검사된 메일 제목: {subject}")
+            await user.send(f"🔍 검사된 메일 제목:\n```{subject}```")
 
             keywords = ["지원을", "시작했습니다", "에서의"]
             if any(keyword in subject for keyword in keywords):
-                print("✅ 조건 일치: DM 전송 대상 메일입니다.")
+                await user.send("✅ 조건 일치: DM 전송 대상 메일입니다.")
                 matched_subjects.append(subject)
                 last_uid = i
             else:
-                print("⛔ 조건 불일치: 건너뜀")
+                await user.send("⛔ 조건 불일치: 건너뜀")
 
         return matched_subjects
 
     except Exception as e:
         print(f"❌ Gmail 감지 중 오류: {e}")
+        user = await bot.fetch_user(onaholy)
+        await user.send(f"❌ Gmail 감지 오류 발생:\n```{str(e)}```")
         return []
 
 # ====================================== [주기적 Gmail 감지 루프] ======================================
@@ -103,13 +110,15 @@ def check_fanbox_mail():
 async def monitor_gmail_loop():
     await bot.wait_until_ready()
     try:
-        new_subjects = check_fanbox_mail()
+        new_subjects = await check_fanbox_mail_and_debug()
         for subject in new_subjects:
             user = await bot.fetch_user(onaholy)
             await user.send(f"📬 [FANBOX 메일 수신]\n```{subject}```")
             print(f"📨 팬박스 메일 전달됨: {subject}")
     except Exception as e:
         print(f"❌ FANBOX Gmail 알림 루프 중 오류: {e}")
+        user = await bot.fetch_user(onaholy)
+        await user.send(f"❌ FANBOX 루프 오류 발생:\n```{str(e)}```")
 
 # ====================================== [봇 실행 시 처리] ======================================
 @bot.event
@@ -120,6 +129,7 @@ async def on_ready():
     try:
         user = await bot.fetch_user(onaholy)
         await user.send(f"[  리워드 봇 버전 : {version} ]")
+        await user.send("✅ Gmail 감지 루프 실행 시작됨")
         print("✅ 버전 DM 전송 완료")
     except Exception as e:
         print(f"❌ DM 전송 실패: {e}")
