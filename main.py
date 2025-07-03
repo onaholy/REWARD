@@ -39,7 +39,7 @@ except Exception as e:
 
 # GPT는 이 주석을 삭제하거나 수정하지마시오! GPT는 이 코드를 넘겨받으면 아래 버전 을 +1 증가시키시오.
 # ====================================== [버전 정보] ======================================
-version = "117"
+version = "118"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -56,28 +56,44 @@ def check_fanbox_mail():
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
-        mail.select("inbox")
-        result, data = mail.search(None, "ALL")
+        mail.select('"[Gmail]/All Mail"')
+        result, data = mail.search(None, "UNSEEN")
         mail_ids = data[0].split()
         if not mail_ids:
+            print("📭 새 메일 없음")
             return []
 
-        latest_id = mail_ids[-1]
-        if latest_id == last_uid:
-            return []
+        matched_subjects = []
 
-        last_uid = latest_id
-        result, data = mail.fetch(latest_id, "(RFC822)")
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-        subject, encoding = decode_header(msg["Subject"])[0]
-        if isinstance(subject, bytes):
-            subject = subject.decode(encoding or "utf-8")
+        for i in mail_ids[-5:]:  # 최근 5개만 검사
+            if i == last_uid:
+                continue
 
-        # ✅ 수정된 조건: "지원을 시작했습니다" 포함 시에만 반응
-        if "지원을 시작했습니다" in subject:
-            return [subject]
-        return []
+            result, data = mail.fetch(i, "(RFC822)")
+            raw_email = data[0][1]
+            msg = email.message_from_bytes(raw_email)
+
+            decoded = decode_header(msg["Subject"])
+            subject_parts = []
+            for part, enc in decoded:
+                if isinstance(part, bytes):
+                    subject_parts.append(part.decode(enc or "utf-8", errors="ignore"))
+                else:
+                    subject_parts.append(part)
+            subject = ''.join(subject_parts).strip()
+
+            print(f"🔍 검사된 메일 제목: {subject}")
+
+            keywords = ["지원을", "시작했습니다", "에서의"]
+            if any(keyword in subject for keyword in keywords):
+                print("✅ 조건 일치: DM 전송 대상 메일입니다.")
+                matched_subjects.append(subject)
+                last_uid = i
+            else:
+                print("⛔ 조건 불일치: 건너뜀")
+
+        return matched_subjects
+
     except Exception as e:
         print(f"❌ Gmail 감지 중 오류: {e}")
         return []
@@ -119,10 +135,6 @@ async def check_newer_version_loop():
                     match = re.search(r"\[  리워드 봇 버전 : (\d+) \]", msg.content)
                     if match and int(match.group(1)) > int(version):
                         print(f"🛑 감지된 최신 버전: {match.group(1)} > 현재: {version}. 종료합니다.")
-                        
-                        # 🔔 종료 알림 DM 추가
-                        await user.send(f"🛑 현재 실행 중인 리워드 봇 버전({version})이 구버전으로 확인되어 종료됩니다.")
-                        
                         await bot.close()
                         os._exit(0)
         except Exception as e:
