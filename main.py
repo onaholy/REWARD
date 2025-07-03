@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "134"
+version = "136"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -96,6 +96,7 @@ async def check_older_instances():
             except:
                 continue
             if previous_time > boot_time:
+                await user.send("[ 기존 인스턴스가 더 최신입니다. 자동 종료합니다. ]")
                 await bot.close()
                 os._exit(0)
 
@@ -171,12 +172,13 @@ async def on_message(message):
                 await message.channel.send("🔒 모든 인스턴스 종료됨.")
                 await bot.close()
                 os._exit(0)
-            elif content == "list":
+            elif content in ["list", "/list", "/리스트"]:
                 if not supporter_list:
                     await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
                 else:
                     supporters = "\n".join(f"{i+1}. {s}" for i, s in enumerate(supporter_list))
-                    response = f"📄 저장된 후원자 목록:\n```\n{supporters}\n```"
+                    total = len(supporter_list)
+                    response = f"📄 저장된 후원자 목록 (총 {total}명):\n```\n{supporters}\n```"
                     await message.channel.send(response)
     await bot.process_commands(message)
 
@@ -184,7 +186,7 @@ async def on_message(message):
 @bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
 async def list_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `DM으로 list 입력 시 안내`", ephemeral=True
+        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `DM으로 list 또는 /리스트 입력 시 후원자 명단 출력`", ephemeral=True
     )
 
 @bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
