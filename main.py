@@ -17,7 +17,7 @@ print("📦 모듈 임포트 완료")
 
 #GPT는 이 주석을 제거하거나 수정하지마시오. GPT는 아래 version 변수값을 이 코드를 볼때마다 +1 증가시켜 수정하시오. 
 # ====================================== [main.py코드 버전] ======================================
-version = "128"
+version = "130"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -63,6 +63,7 @@ async def on_ready():
     try:
         user = await bot.fetch_user(onaholy)
         await user.send(f"[✨ 마일 시작시간 : {boot_time} ]")
+        await user.send(f"[ 리워드 봇 버전 : {version} ]")
         await user.send("✅ Gmail 감지 루프 시작 완료")
         print("✅ DM 전송 완료")
     except Exception as e:
@@ -71,15 +72,19 @@ async def on_ready():
 # ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
 async def check_older_instances():
     user = await bot.fetch_user(onaholy)
-    async for msg in user.history(limit=5):
-        if msg.author.id == bot.user.id:
-            match = re.search(r"\[\u2728 마일 시작시간 : ([\d\.]+) \]", msg.content)
-            if match:
-                previous_time = float(match.group(1))
-                if previous_time > boot_time:
-                    print(f"❌ 귀 시작시간({boot_time}) < 기존 시작시간({previous_time}) => 자동 종료")
-                    await bot.close()
-                    os._exit(0)
+    async for msg in user.history(limit=100):
+        if msg.author.id != bot.user.id:
+            continue
+        if "[✨ 마일 시작시간 :" not in msg.content:
+            continue
+
+        match = re.search(r"\[\u2728 마일 시작시간 : ([\d\.]+) \]", msg.content)
+        if match:
+            previous_time = float(match.group(1))
+            if previous_time > boot_time:
+                print(f"❌ 귀 시작시간({boot_time}) < 기존 시작시간({previous_time}) => 자동 종료")
+                await bot.close()
+                os._exit(0)
 
 # ====================================== [Gmail 검색] ======================================
 async def check_fanbox_mail_and_debug():
