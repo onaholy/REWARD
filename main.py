@@ -15,6 +15,10 @@ from datetime import datetime
 
 print("📦 모듈 임포트 완료")
 
+#GPT는 이 주석을 제거하거나 수정하지마시오. GPT는 아래 version 변수값을 이 코드를 볼때마다 +1 증가시켜 수정하시오. 
+# ====================================== [main.py코드 버전] ======================================
+version = "128"
+
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
     bot_token = os.getenv("BOT_TOKEN")
@@ -41,12 +45,7 @@ except Exception as e:
 # ====================================== [시스템 시작 시간] ======================================
 boot_time = datetime.utcnow().timestamp()
 
-
-#GPT는 이 주석을 제거하거나 수정하지마시오.  GPT는 아래 version 변수값을 이 코드를 볼때마다 +1 증가시켜 수정하시오. 
-# ====================================== [main.py코드 버전] ======================================
-version = "126"
-
-# ====================================== [디스코드 버 설정] ======================================
+# ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -69,7 +68,7 @@ async def on_ready():
     except Exception as e:
         print(f"❌ DM 전송 실패: {e}")
 
-# ====================================== [기 있는 인스턴스 시간과 비교] ======================================
+# ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
 async def check_older_instances():
     user = await bot.fetch_user(onaholy)
     async for msg in user.history(limit=5):
@@ -122,8 +121,7 @@ async def check_fanbox_mail_and_debug():
 
     except Exception as e:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"❌ Gmail 검색 오류:
-```{str(e)}```")
+        await user.send(f"❌ Gmail 검색 오류:\n```{str(e)}```")
         return []
 
 # ====================================== [주기적 Gmail 검색 루프] ======================================
@@ -132,15 +130,15 @@ async def monitor_gmail_loop():
     await bot.wait_until_ready()
     try:
         new_subjects = await check_fanbox_mail_and_debug()
-        for subject in new_subjects:
+        if new_subjects:
             user = await bot.fetch_user(onaholy)
-            await user.send(f"📬 [FANBOX 메일 수신]\n```{subject}```")
-            print(f"📨 판박스 메일 전달됨: {subject}")
+            msg = "\n".join(f"- {subj}" for subj in new_subjects)
+            await user.send(f"📬 [FANBOX 메일 수신됨]\n```{msg}```")
+            print(f"📨 총 {len(new_subjects)}건 메일 DM 전송됨")
     except Exception as e:
         print(f"❌ FANBOX Gmail 루프 오류: {e}")
         user = await bot.fetch_user(onaholy)
-        await user.send(f"❌ FANBOX 루프 오류:
-```{str(e)}```")
+        await user.send(f"❌ FANBOX 루프 오류:\n```{str(e)}```")
 
 # ====================================== [onaholy가 DM으로 list 입력 시 안내 보내기] ======================================
 @bot.event
@@ -161,17 +159,17 @@ async def on_message(message):
 async def 핑(ctx):
     await ctx.send("폰!")
 
-# ====================================== [슬레시 명령어 등록] ======================================
+# ====================================== [슬래시 명령어 등록] ======================================
 @bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
 async def list_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `!\ud551`\n- `DM으로 list 입력 시 안내`", ephemeral=True
+        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `!핑`\n- `DM으로 list 입력 시 안내`", ephemeral=True
     )
 
 @bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
 async def reward_command(interaction: discord.Interaction):
     await interaction.response.send_message("🏱 리워드 기능은 아직 개발 중입니다.", ephemeral=True)
 
-# ====================================== [번 실행] ======================================
+# ====================================== [봇 실행] ======================================
 print("🚀 번 실행 시작")
 bot.run(bot_token)
