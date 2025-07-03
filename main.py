@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "133"
+version = "134"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -37,7 +37,9 @@ except Exception as e:
     sys.exit(1)
 
 # ====================================== [시스템 시작 시간] ======================================
-boot_time = datetime.utcnow().timestamp()
+boot_time_obj = datetime.utcnow()
+boot_time = boot_time_obj.timestamp()
+boot_display = f"{boot_time_obj.day}일 {boot_time_obj.hour}시 {boot_time_obj.minute}분 {boot_time_obj.second}초"
 
 # ====================================== [프로그램 데이터 저장] ======================================
 supporter_list = []
@@ -72,7 +74,7 @@ async def on_ready():
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"[ 시작 시간 : {boot_time} ]")
+        await user.send(f"[ 시작 시간 : {boot_display} ]")
         await user.send(f"[ 리워드 봇 버전 : {version} ]")
     except Exception:
         pass
@@ -86,9 +88,13 @@ async def check_older_instances():
         if "[ 시작 시간 :" not in msg.content:
             continue
 
-        match = re.search(r"\[ 시작 시간 : ([\d\.]+) \]", msg.content)
+        match = re.search(r"\[ 시작 시간 : ([^\]]+) \]", msg.content)
         if match:
-            previous_time = float(match.group(1))
+            previous_time_str = match.group(1)
+            try:
+                previous_time = float(previous_time_str)
+            except:
+                continue
             if previous_time > boot_time:
                 await bot.close()
                 os._exit(0)
@@ -96,6 +102,7 @@ async def check_older_instances():
 # ====================================== [Gmail 검색] ======================================
 async def check_fanbox_mail_and_debug():
     global last_uid
+    matched_subjects = []
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
@@ -103,9 +110,8 @@ async def check_fanbox_mail_and_debug():
         result, data = mail.search(None, "UNSEEN")
         mail_ids = data[0].split()
         if not mail_ids:
-            return []
+            return matched_subjects
 
-        matched_subjects = []
         keywords = ["지원을", "시작했습니다", "에서의", "0 회원!", "님이 새로 가입"]
 
         for i in mail_ids[-5:]:
@@ -132,23 +138,25 @@ async def check_fanbox_mail_and_debug():
                 matched_subjects.append(subject)
                 last_uid = i
 
-        return matched_subjects
-
     except Exception as e:
         user = await bot.fetch_user(onaholy)
         await user.send(f"❌ Gmail 검색 오류:\n```{str(e)}```")
-        return []
+
+    return matched_subjects
 
 # ====================================== [주기적 Gmail 검색 루프] ======================================
 @tasks.loop(seconds=30)
 async def monitor_gmail_loop():
     await bot.wait_until_ready()
     try:
+        user = await bot.fetch_user(onaholy)
+        await user.send("[ 메일 체크 시작 ]")
         new_subjects = await check_fanbox_mail_and_debug()
         if new_subjects:
-            user = await bot.fetch_user(onaholy)
-            msg = "\n".join(f"- {subj}" for subj in new_subjects)
-            await user.send(f"📬 [FANBOX 메일 수신됨]\n```{msg}```")
+            for subj in new_subjects:
+                await user.send(f"[ 새 후원자 : \"{subj}\" ]")
+        else:
+            await user.send("[ 새 후원자 없음 ]")
     except Exception as e:
         user = await bot.fetch_user(onaholy)
         await user.send(f"❌ FANBOX 루프 오류:\n```{str(e)}```")
