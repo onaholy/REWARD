@@ -12,13 +12,13 @@ import sys
 bot_token = os.getenv("BOT_TOKEN")  # GPT는 해당 변수명을 절대 수정하지 마시오
 onaholy = int(os.getenv("ONAHOLY"))  # GPT는 해당 변수명을 절대 수정하지 마시오
 
-version = "103"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
+version = "104"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.dm_messages = True  # DM 메시지 수신을 위한 설정
+intents.dm_messages = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -26,12 +26,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"✅ 봇 로그인됨: {bot.user} (ID: {bot.user.id})")
-    bot.loop.create_task(check_newer_version_loop())  # 10초 주기 버전 확인 태스크 실행
+    bot.loop.create_task(check_newer_version_loop())
 
     try:
         user = await bot.fetch_user(onaholy)
         if user:
-            # 최초 실행 시 최근 DM 확인 (중복 인스턴스 방지)
             dms = await user.history(limit=10).flatten()
             latest_version = None
 
@@ -51,8 +50,11 @@ async def on_ready():
             await user.send(f"[  리워드 봇 버전 : {version} ]")
             print(f"✅ onaholy에게 버전 DM 전송 완료")
 
+        await bot.tree.sync()  # 슬래시 커맨드 동기화
+        print("✅ 슬래시 명령어 동기화 완료")
+
     except Exception as e:
-        print(f"❌ onaholy에게 DM 전송 실패: {e}")
+        print(f"❌ on_ready 처리 중 오류: {e}")
 
 # ====================================== [주기적으로 DM에서 최신 버전 확인 후 자동 종료] ======================================
 async def check_newer_version_loop():
@@ -70,7 +72,7 @@ async def check_newer_version_loop():
                         os._exit(0)
         except Exception as e:
             print(f"❌ 주기적 버전 확인 중 오류: {e}")
-        await asyncio.sleep(10)  # 10초마다 반복 확인
+        await asyncio.sleep(10)
 
 # ====================================== [onaholy가 DM으로 '리워드 종료' 시 즉시 셧다운] ======================================
 @bot.event
@@ -84,10 +86,15 @@ async def on_message(message):
             os._exit(0)
     await bot.process_commands(message)
 
-# ====================================== [기본 명령어 예시] ======================================
+# ====================================== [텍스트 명령어] ======================================
 @bot.command()
 async def 핑(ctx):
     await ctx.send("퐁!")
+
+# ====================================== [슬래시 명령어 등록] ======================================
+@bot.tree.command(name="list", description="리워드 봇의 커맨드 목록을 보여줍니다.")
+async def list_command(interaction: discord.Interaction):
+    await interaction.response.send_message("✅ 사용 가능한 명령어:\n- `/list`\n- `!핑`\n- (추후 명령 추가 예정)", ephemeral=True)
 
 # ====================================== [봇 실행] ======================================
 bot.run(bot_token)
