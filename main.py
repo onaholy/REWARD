@@ -119,6 +119,10 @@ async def check_newer_version_loop():
                     match = re.search(r"\[  리워드 봇 버전 : (\d+) \]", msg.content)
                     if match and int(match.group(1)) > int(version):
                         print(f"🛑 감지된 최신 버전: {match.group(1)} > 현재: {version}. 종료합니다.")
+                        
+                        # 🔔 종료 알림 DM 추가
+                        await user.send(f"🛑 현재 실행 중인 리워드 봇 버전({version})이 구버전으로 확인되어 종료됩니다.")
+                        
                         await bot.close()
                         os._exit(0)
         except Exception as e:
