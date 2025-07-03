@@ -34,7 +34,7 @@ except Exception as e:
     print(f"❌ 환경변수 로딩 오류: {e}")
     sys.exit(1)
 
-version = "109"
+version = "110"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -81,7 +81,10 @@ async def check_newer_version_loop():
     while not bot.is_closed():
         try:
             user = await bot.fetch_user(onaholy)
-            dms = await user.history(limit=5).flatten()
+            dms = []
+            async for msg in user.history(limit=5):
+                dms.append(msg)
+
             for msg in dms:
                 if msg.author.id == bot.user.id:
                     match = re.search(r"\[  리워드 봇 버전 : (\d+) \]", msg.content)
