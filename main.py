@@ -10,16 +10,17 @@ import sys
 import requests
 import imaplib
 import email
+import json
 from email.header import decode_header
 from datetime import datetime
 
 print("📦 모듈 임포트 완료")
 
-#GPT는 이 주석을 제거하거나 수정하지마시오. GPT는 아래 version 변수값을 이 코드를 볼때마다 +1 증가시켜 수정하시오. 
-# ====================================== [main.py코드 버전] ======================================
-version = "130"
+#GPT는 이 주석을 제거하거나 수정하지마시오. GPT는 아래 version 변수값을 이 코드를 보는때마다 +1 증가시여 수정하시오. 
+# ====================================== [main.py컴드 버전] ======================================
+version = "131"
 
-# ====================================== [환경변수에서 값 불러오기] ======================================
+# ====================================== [환경변수에서 값 등록하기] ======================================
 try:
     bot_token = os.getenv("BOT_TOKEN")
     if not bot_token:
@@ -45,7 +46,23 @@ except Exception as e:
 # ====================================== [시스템 시작 시간] ======================================
 boot_time = datetime.utcnow().timestamp()
 
-# ====================================== [디스코드 봇 설정] ======================================
+# ====================================== [프로그램 데이터 저장] ======================================
+supporter_list = []
+SUPPORTER_FILE = "list.json"
+
+def save_supporters():
+    with open(SUPPORTER_FILE, "w", encoding="utf-8") as f:
+        json.dump(supporter_list, f, ensure_ascii=False, indent=2)
+
+def load_supporters():
+    global supporter_list
+    if os.path.exists(SUPPORTER_FILE):
+        with open(SUPPORTER_FILE, "r", encoding="utf-8") as f:
+            supporter_list = json.load(f)
+    else:
+        supporter_list = []
+
+# ====================================== [디스코드 바치 설정] ======================================
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -58,12 +75,13 @@ last_uid = None
 @bot.event
 async def on_ready():
     print(f"✅ 번 로그인됨: {bot.user} (ID: {bot.user.id})")
+    load_supporters()
     await check_older_instances()
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
         await user.send(f"[✨ 마일 시작시간 : {boot_time} ]")
-        await user.send(f"[ 리워드 봇 버전 : {version} ]")
+        await user.send(f"[ 리워드 버전 : {version} ]")
         await user.send("✅ Gmail 감지 루프 시작 완료")
         print("✅ DM 전송 완료")
     except Exception as e:
@@ -78,7 +96,7 @@ async def check_older_instances():
         if "[✨ 마일 시작시간 :" not in msg.content:
             continue
 
-        match = re.search(r"\[\u2728 마일 시작시간 : ([\d\.]+) \]", msg.content)
+        match = re.search(r"\[✨ 마일 시작시간 : ([\d\.]+) \]", msg.content)
         if match:
             previous_time = float(match.group(1))
             if previous_time > boot_time:
@@ -119,6 +137,9 @@ async def check_fanbox_mail_and_debug():
             subject = ''.join(subject_parts).strip()
 
             if any(keyword in subject for keyword in keywords):
+                if subject not in supporter_list:
+                    supporter_list.append(subject)
+                    save_supporters()
                 matched_subjects.append(subject)
                 last_uid = i
 
@@ -156,7 +177,13 @@ async def on_message(message):
                 await bot.close()
                 os._exit(0)
             elif content == "list":
-                await message.channel.send("📬 현재 판박스 쿠키 기능은 제거되었습니다.")
+                if not supporter_list:
+                    await message.channel.send("📍 저장된 후원자 정보가 없습니다.")
+                else:
+                    supporters = "\n".join(f"{i+1}. {s}" for i, s in enumerate(supporter_list))
+                    await message.channel.send(f"📄 저장된 후원자 목록:\n```
+{supporters}
+```")
     await bot.process_commands(message)
 
 # ====================================== [텍스트 명령어] ======================================
@@ -165,16 +192,16 @@ async def 핑(ctx):
     await ctx.send("폰!")
 
 # ====================================== [슬래시 명령어 등록] ======================================
-@bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
+@bot.tree.command(name="list", description="리워드 버스의 커명드 목록을 보여줍니다.")
 async def list_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `!핑`\n- `DM으로 list 입력 시 안내`", ephemeral=True
+        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `!\ud551`\n- `DM으로 list 입력 시 안내`", ephemeral=True
     )
 
 @bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
 async def reward_command(interaction: discord.Interaction):
-    await interaction.response.send_message("🏱 리워드 기능은 아직 개발 중입니다.", ephemeral=True)
+    await interaction.response.send_message("🍱 리워드 기능은 아직 개발 중입니다.", ephemeral=True)
 
-# ====================================== [봇 실행] ======================================
+# ====================================== [번 실행 시작] ======================================
 print("🚀 번 실행 시작")
 bot.run(bot_token)
