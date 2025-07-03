@@ -28,7 +28,7 @@ except Exception as e:
     print(f"❌ 환경변수 로딩 오류: {e}")
     sys.exit(1)
 
-version = "107"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
+version = "108"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -46,7 +46,11 @@ async def on_ready():
 
     try:
         print(f"📌 ONAHOLY 환경변수: {onaholy}")
-        user = await bot.fetch_user(onaholy)
+        user = bot.get_user(onaholy)
+        if not user:
+            print("ℹ️ get_user 실패, fetch_user 시도 중...")
+            user = await bot.fetch_user(onaholy)
+
         print(f"📌 onaholy 유저 객체: {user}")
 
         if user:
@@ -63,13 +67,23 @@ async def on_ready():
 
             if latest_version and int(latest_version) > int(version):
                 print(f"❌ 중복 인스턴스 감지됨. 종료.")
-                await user.send(f"🔴 중복 방지: 현재 실행된 [{version}] 인스턴스가 [{latest_version}]보다 낮아 종료됨.")
+                try:
+                    await user.send(f"🔴 중복 방지: 현재 실행된 [{version}] 인스턴스가 [{latest_version}]보다 낮아 종료됨.")
+                except discord.Forbidden:
+                    print("🚫 DM 전송 실패: 권한 없음 (DM 차단 중일 가능성)")
+                except Exception as e:
+                    print(f"❌ DM 전송 중 예외 발생: {e}")
                 await bot.close()
                 os._exit(0)
 
             print("📩 onaholy에게 버전 알림 전송 중...")
-            await user.send(f"[  리워드 봇 버전 : {version} ]")
-            print("✅ 버전 DM 전송 완료")
+            try:
+                await user.send(f"[  리워드 봇 버전 : {version} ]")
+                print("✅ 버전 DM 전송 완료")
+            except discord.Forbidden:
+                print("🚫 DM 전송 실패: 권한 없음 (DM 차단 중일 가능성)")
+            except Exception as e:
+                print(f"❌ DM 전송 중 예외 발생: {e}")
 
         else:
             print("❌ fetch_user 결과가 None입니다.")
