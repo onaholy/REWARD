@@ -1,6 +1,7 @@
 #현재 코드의 이름은 requirements.txt 입니다. GPT는 이 주석을 삭제하지마세요.
 
 
+discord.py>=2.3.2
 
 
 
