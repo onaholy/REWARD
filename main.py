@@ -4,9 +4,11 @@
 import discord
 from discord.ext import commands
 import asyncio
+import os
 
-# ====================================== [etc에서 값 불러오기] ======================================
-from etc import bot_token, onaholy  # GPT는 해당 임포트를 절대 삭제하거나 수정하지마시오
+# ====================================== [환경변수에서 값 불러오기] ======================================
+bot_token = os.getenv("BOT_TOKEN")  # GPT는 해당 변수명을 절대 수정하지 마시오
+onaholy = int(os.getenv("ONAHOLY"))  # GPT는 해당 변수명을 절대 수정하지 마시오
 
 version = "101"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
 
