@@ -34,7 +34,7 @@ except Exception as e:
     print(f"❌ 환경변수 로딩 오류: {e}")
     sys.exit(1)
 
-version = "110"
+version =                                          "111"                     
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
