@@ -1,4 +1,3 @@
-
 # 해당 코드의 이름은 main.py 입니다. GPT는 이 주석을 삭제나 수정하지마시오.
 
 # ====================================== [기본 모듈 임포트] ======================================
@@ -38,7 +37,9 @@ except Exception as e:
     print(f"❌ 환경변수 로딩 오류: {e}")
     sys.exit(1)
 
-version = "114"  # GPT는 이 주석을 변경하거나 삭제하지마시오! GPT는 이 글을 볼때마다 버전을 +1 증가시키시오
+# GPT는 이 주석을 삭제하거나 수정하지마시오! GPT는 이 코드를 넘겨받으면 아래 버전 을 +1 증가시키시오.
+# ====================================== [버전 정보] ======================================
+version = "112"
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -61,25 +62,22 @@ def check_fanbox_mail():
         if not mail_ids:
             return []
 
-        new_subjects = []
-        for mail_id in reversed(mail_ids[-10:]):  # 최근 10개 메일 확인
-            if last_uid and mail_id <= last_uid:
-                break
+        latest_id = mail_ids[-1]
+        if latest_id == last_uid:
+            return []
 
-            result, data = mail.fetch(mail_id, "(RFC822)")
-            raw_email = data[0][1]
-            msg = email.message_from_bytes(raw_email)
-            subject, encoding = decode_header(msg["Subject"])[0]
-            if isinstance(subject, bytes):
-                subject = subject.decode(encoding or "utf-8")
+        last_uid = latest_id
+        result, data = mail.fetch(latest_id, "(RFC822)")
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+        subject, encoding = decode_header(msg["Subject"])[0]
+        if isinstance(subject, bytes):
+            subject = subject.decode(encoding or "utf-8")
 
-            if "pixivFANBOX" in subject and "지원을 시작했습니다" in subject:
-                new_subjects.append(subject)
-
-        if mail_ids:
-            last_uid = mail_ids[-1]
-
-        return list(reversed(new_subjects))
+        # ✅ 수정된 조건: "지원을 시작했습니다" 포함 시에만 반응
+        if "지원을 시작했습니다" in subject:
+            return [subject]
+        return []
     except Exception as e:
         print(f"❌ Gmail 감지 중 오류: {e}")
         return []
