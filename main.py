@@ -12,7 +12,7 @@ import sys
 bot_token = os.getenv("BOT_TOKEN")  # GPT는 해당 변수명을 절대 수정하지 마시오
 onaholy = int(os.getenv("ONAHOLY"))  # GPT는 해당 변수명을 절대 수정하지 마시오
 
-version = "105"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
+version = "106"  # GPT는 코드를 업데이트 할때마다 해당 변수값을 +1 하시오
 
 # ====================================== [디스코드 봇 설정] ======================================
 intents = discord.Intents.default()
@@ -29,8 +29,12 @@ async def on_ready():
     bot.loop.create_task(check_newer_version_loop())
 
     try:
+        print(f"📌 ONAHOLY 환경변수: {onaholy}")
         user = await bot.fetch_user(onaholy)
+        print(f"📌 onaholy 유저 객체: {user}")
+
         if user:
+            print("📩 DM 기록 가져오는 중...")
             dms = await user.history(limit=10).flatten()
             latest_version = None
 
@@ -42,15 +46,19 @@ async def on_ready():
                         break
 
             if latest_version and int(latest_version) > int(version):
-                print(f"❌ 현재 인스턴스 종료됨 (최신 버전: {latest_version}, 현재 버전: {version})")
+                print(f"❌ 중복 인스턴스 감지됨. 종료.")
                 await user.send(f"🔴 중복 방지: 현재 실행된 [{version}] 인스턴스가 [{latest_version}]보다 낮아 종료됨.")
                 await bot.close()
                 os._exit(0)
 
+            print("📩 onaholy에게 버전 알림 전송 중...")
             await user.send(f"[  리워드 봇 버전 : {version} ]")
-            print(f"✅ onaholy에게 버전 DM 전송 완료")
+            print("✅ 버전 DM 전송 완료")
 
-        await bot.tree.sync()  # 슬래시 커맨드 동기화
+        else:
+            print("❌ fetch_user 결과가 None입니다.")
+
+        await bot.tree.sync()
         print("✅ 슬래시 명령어 동기화 완료")
 
     except Exception as e:
@@ -88,7 +96,6 @@ async def on_message(message):
                 os._exit(0)
 
             elif content.lower() == "list":
-                # ✅ 여기서 후원자 목록 처리
                 try:
                     await message.channel.send("✅ 후원자 목록:\n- 예시1\n- 예시2\n(실제 구현 필요)")
                     print("📩 onaholy에게 후원자 목록 전송됨")
