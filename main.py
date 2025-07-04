@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "144"
+version = "145"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -116,6 +116,7 @@ async def check_fanbox_mail_and_debug():
             return matched_subjects
 
         keywords = ["지원을", "시작했습니다", "에서의", "0 회원!", "님이 새로 가입"]
+        user = await bot.fetch_user(onaholy)
 
         for i in mail_ids[-5:]:
             if i == last_uid:
@@ -134,7 +135,10 @@ async def check_fanbox_mail_and_debug():
                     subject_parts.append(part)
             subject = ''.join(subject_parts).strip()
 
-            if any(keyword in subject for keyword in keywords):
+            keyword_hit = any(keyword in subject for keyword in keywords)
+            await user.send(f"[ 제목 확인 ]\n{subject}\n➡ 조건 만족 여부: {'✅' if keyword_hit else '❌'}")
+
+            if keyword_hit:
                 if subject not in supporter_list:
                     supporter_list.append(subject)
                     save_supporters()
