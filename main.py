@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "140"
+version = "142"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -74,8 +74,8 @@ async def on_ready():
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"[ 시작 시간 : {boot_display} ]")
-        await user.send(f"[ 리워드 봇 버전 : {version} ]")
+        await user.send(f"[ 리워드 봇 버전 : {version}        -         시작 시간 : {boot_display} ]")
+        await user.send(f"[ 인스턴스 식별 : {boot_time} ]")
     except Exception:
         pass
 
@@ -86,7 +86,7 @@ async def check_older_instances():
         if msg.author.id != bot.user.id:
             continue
 
-        match = re.search(r"\[ 시작 시간 : ([\d\.]+) \]", msg.content)
+        match = re.search(r"\[ 인스턴스 식별 : ([\d\.]+) \]", msg.content)
         if match:
             try:
                 previous_time = float(match.group(1))
