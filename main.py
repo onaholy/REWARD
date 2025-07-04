@@ -15,7 +15,15 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "152"
+version = "153"
+
+# ====================================== [파일 저장 경로 설정] ======================================
+PERSISTENT_PATH = "/var/data"
+SUPPORTER_FILE = os.path.join(PERSISTENT_PATH, "list.json")
+
+if not os.path.exists(PERSISTENT_PATH):
+    print("⚠️ 경고: /var/data 경로가 존재하지 않음. 디스크가 마운트되지 않았을 수 있음.")
+    SUPPORTER_FILE = "list_backup.json"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -43,7 +51,6 @@ boot_display = f"{boot_time_obj.day}일 {boot_time_obj.hour}시 {boot_time_obj.m
 
 # ====================================== [프로그램 데이터 저장] ======================================
 supporter_list = []
-SUPPORTER_FILE = "list.json"
 
 def save_supporters():
     with open(SUPPORTER_FILE, "w", encoding="utf-8") as f:
