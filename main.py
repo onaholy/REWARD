@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "150"
+version = "152"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -78,7 +78,7 @@ async def on_ready():
     except Exception:
         pass
 
-# ====================================== [7초마다 인스턴스 중복 확인] ======================================
+# ====================================== [중복 인스턴스 종료 확인] ======================================
 @tasks.loop(seconds=7)
 async def periodic_instance_check():
     user = await bot.fetch_user(onaholy)
@@ -102,7 +102,7 @@ async def periodic_instance_check():
             except:
                 continue
 
-# ====================================== [Gmail 검색] ======================================
+# ====================================== [Gmail 검색 및 디버깅] ======================================
 async def check_fanbox_mail_and_debug():
     global last_uid
     matched_subjects = []
@@ -138,24 +138,25 @@ async def check_fanbox_mail_and_debug():
                     subject_parts.append(part)
             subject = ''.join(subject_parts).strip()
 
-            keyword_hit = any(k in subject for k in ["지원을", "시작했습니다", "에서의", "0 회원!", "님이 새로 가입"])
+            keyword_hit = any(k in subject for k in ["지원을", "시작", "에서의", "0 회원!", "가입"])
             inspected_subjects.append(f"{'✅' if keyword_hit else '❌'} {subject}")
 
             if keyword_hit:
-                if "님이 새로 가입했습니다" in subject:
-                    match = re.search(r"회원! .*? (.*?)님이", subject)
-                    platform = "Patreon"
+                if "가입" in subject:
+                    platform = "패트리온"
+                elif "시작" in subject:
+                    platform = "팬박스"
                 else:
-                    match = re.search(r"^(.*?) 님이", subject)
-                    platform = "Fanbox"
+                    platform = "기타"
 
+                match = re.search(r"^(.*?) 님이", subject)
                 if match:
                     name = match.group(1).strip()
-                    full = f"{name} ({platform})"
-                    if full not in supporter_list:
-                        supporter_list.append(full)
+                    is_duplicate = any(s["name"] == name and s["platform"] == platform for s in supporter_list)
+                    if not is_duplicate:
+                        supporter_list.append({"name": name, "platform": platform})
                         save_supporters()
-                        matched_subjects.append(full)
+                        matched_subjects.append(f"{name} - {platform}")
                         last_uid = i
 
         if inspected_subjects:
@@ -170,7 +171,7 @@ async def check_fanbox_mail_and_debug():
 
     return matched_subjects
 
-# ====================================== [주기적 Gmail 검색 루프] ======================================
+# ====================================== [주기적 Gmail 검사] ======================================
 @tasks.loop(seconds=30)
 async def monitor_gmail_loop():
     await bot.wait_until_ready()
@@ -186,52 +187,58 @@ async def monitor_gmail_loop():
         user = await bot.fetch_user(onaholy)
         await user.send(f"❌ FANBOX 루프 오류:\n```{str(e)}```")
 
-# ====================================== [onaholy가 DM으로 명령어 입력 시 처리] ======================================
+# ====================================== [후원자 리스트 출력 함수] ======================================
+def format_supporter_list():
+    lines = [f"{i+1}. {s['name']} - {s['platform']}" for i, s in enumerate(supporter_list)]
+    count_fanbox = sum(1 for s in supporter_list if s["platform"] == "팬박스")
+    count_patreon = sum(1 for s in supporter_list if s["platform"] == "패트리온")
+    count_total = len(supporter_list)
+    lines.append("")
+    lines.append(f"📌 팬박스: {count_fanbox}명")
+    lines.append(f"📌 패트리온: {count_patreon}명")
+    lines.append(f"📌 전체 후원자: {count_total}명")
+    return "\n".join(lines)
+
+# ====================================== [DM 명령어 처리] ======================================
 @bot.event
 async def on_message(message):
-    if isinstance(message.channel, discord.DMChannel):
-        if message.author.id == onaholy:
-            content = message.content.strip().lower()
-            if content in ["종료", "리셋", "/종료", "/리셋", "/리워드 종료", "리워드 종료"]:
-                await message.channel.send("🔒 모든 인스턴스 종료됨.")
-                await bot.close()
-                os._exit(0)
-            elif content in ["리스트 리셋"]:
-                supporter_list.clear()
-                save_supporters()
-                await message.channel.send("📛 후원자 목록이 초기화되었습니다.")
-            elif content in ["list", "리스트", "명단", "/list", "/리스트"]:
-                if not supporter_list:
-                    await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
-                else:
-                    supporters = "\n".join(f"{i+1}. {s}" for i, s in enumerate(supporter_list))
-                    total = len(supporter_list)
-                    response = f"📄 저장된 후원자 목록 (총 {total}명):\n```\n{supporters}\n```"
-                    await message.channel.send(response)
-            elif content in ["checkmail", "메일검사", "메일", "/checkmail", "/메일"]:
-                await message.channel.send("📬 Gmail을 수동으로 검사합니다...")
-                new_subjects = await check_fanbox_mail_and_debug()
-                if new_subjects:
-                    for subj in new_subjects:
-                        await message.channel.send(f"[ 새 후원자 : \"{subj}\" ]")
-                else:
-                    await message.channel.send("[ 새 후원자 없음 ]")
+    if isinstance(message.channel, discord.DMChannel) and message.author.id == onaholy:
+        content = message.content.strip().lower()
+        if content in ["종료", "리셋", "/종료", "/리셋", "/리워드 종료", "리워드 종료"]:
+            await message.channel.send("🔒 모든 인스턴스 종료됨.")
+            await bot.close()
+            os._exit(0)
+        elif content in ["리스트 리셋"]:
+            supporter_list.clear()
+            save_supporters()
+            await message.channel.send("📛 후원자 목록이 초기화되었습니다.")
+        elif content in ["list", "리스트", "명단", "/list", "/리스트"]:
+            if not supporter_list:
+                await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
+            else:
+                msg = format_supporter_list()
+                await message.channel.send(f"📄 저장된 후원자 목록:\n```\n{msg}\n```")
+        elif content in ["checkmail", "메일검사", "메일", "/checkmail", "/메일"]:
+            await message.channel.send("📬 Gmail을 수동으로 검사합니다...")
+            new_subjects = await check_fanbox_mail_and_debug()
+            if new_subjects:
+                for subj in new_subjects:
+                    await message.channel.send(f"[ 새 후원자 : \"{subj}\" ]")
+            else:
+                await message.channel.send("[ 새 후원자 없음 ]")
     await bot.process_commands(message)
 
 # ====================================== [슬래시 명령어 등록] ======================================
-@bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
+@bot.tree.command(name="list", description="리워드 봇의 후원자 목록을 확인합니다.")
 async def list_command(interaction: discord.Interaction):
-    await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `/checkmail`\n- `DM으로 list, 메일검사 등 입력 가능`",
-        ephemeral=True
-    )
+    if not supporter_list:
+        await interaction.response.send_message("📭 저장된 후원자 정보가 없습니다.", ephemeral=True)
+    else:
+        msg = format_supporter_list()
+        await interaction.response.send_message(f"📄 저장된 후원자 목록:\n```\n{msg}\n```", ephemeral=True)
 
-@bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
-async def reward_command(interaction: discord.Interaction):
-    await interaction.response.send_message("🏱 리워드 기능은 아직 개발 중입니다.", ephemeral=True)
-
-@bot.tree.command(name="checkmail", description="Gmail을 수동으로 검사하고 결과를 표시합니다.")
-async def check_mail_command(interaction: discord.Interaction):
+@bot.tree.command(name="checkmail", description="Gmail을 수동으로 검사합니다.")
+async def checkmail_command(interaction: discord.Interaction):
     await interaction.response.send_message("📬 Gmail을 검사 중입니다...", ephemeral=True)
     user = await bot.fetch_user(onaholy)
     new_subjects = await check_fanbox_mail_and_debug()
