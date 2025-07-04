@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "149"
+version = "150"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -107,17 +107,19 @@ async def check_fanbox_mail_and_debug():
     global last_uid
     matched_subjects = []
     inspected_subjects = []
+
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
         mail.select("inbox")
         result, data = mail.search(None, "UNSEEN")
         mail_ids = data[0].split()
-        if not mail_ids:
-            return matched_subjects
 
-        keywords = ["지원을", "시작했습니다", "에서의", "0 회원!", "님이 새로 가입"]
         user = await bot.fetch_user(onaholy)
+
+        if not mail_ids:
+            await user.send("📪 Gmail에 검사할 새 메일이 없습니다.")
+            return matched_subjects
 
         for i in mail_ids[-5:]:
             if i == last_uid:
@@ -136,7 +138,7 @@ async def check_fanbox_mail_and_debug():
                     subject_parts.append(part)
             subject = ''.join(subject_parts).strip()
 
-            keyword_hit = any(k in subject for k in keywords)
+            keyword_hit = any(k in subject for k in ["지원을", "시작했습니다", "에서의", "0 회원!", "님이 새로 가입"])
             inspected_subjects.append(f"{'✅' if keyword_hit else '❌'} {subject}")
 
             if keyword_hit:
@@ -160,11 +162,11 @@ async def check_fanbox_mail_and_debug():
             subject_block = "\n".join(inspected_subjects)
             await user.send(f"[ 검사된 메일 제목 목록 ]\n```\n{subject_block}\n```")
         else:
-            await user.send("📪 검사된 메일이 없습니다.")
+            await user.send("📭 최근 메일 중 검사된 제목이 없습니다.")
 
     except Exception as e:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"❌ Gmail 검색 오류:\n```{str(e)}```")
+        await user.send(f"❌ Gmail 검사 중 오류:\n```{str(e)}```")
 
     return matched_subjects
 
