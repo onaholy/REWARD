@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "141"
+version = "142"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
