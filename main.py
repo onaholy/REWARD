@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "147"
+version = "148"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -199,19 +199,38 @@ async def on_message(message):
                     total = len(supporter_list)
                     response = f"📄 저장된 후원자 목록 (총 {total}명):\n```\n{supporters}\n```"
                     await message.channel.send(response)
+            elif content in ["checkmail", "메일검사", "메일", "/checkmail", "/메일"]:
+                await message.channel.send("📬 Gmail을 수동으로 검사합니다...")
+                new_subjects = await check_fanbox_mail_and_debug()
+                if new_subjects:
+                    for subj in new_subjects:
+                        await message.channel.send(f"[ 새 후원자 : \"{subj}\" ]")
+                else:
+                    await message.channel.send("[ 새 후원자 없음 ]")
     await bot.process_commands(message)
 
 # ====================================== [슬래시 명령어 등록] ======================================
 @bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
 async def list_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `DM으로 list, 리스트, 명단 등 입력 시 후원자 명단 출력`",
+        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `/checkmail`\n- `DM으로 list, 메일검사 등 입력 가능`",
         ephemeral=True
     )
 
 @bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
 async def reward_command(interaction: discord.Interaction):
     await interaction.response.send_message("🏱 리워드 기능은 아직 개발 중입니다.", ephemeral=True)
+
+@bot.tree.command(name="checkmail", description="Gmail을 수동으로 검사하고 결과를 표시합니다.")
+async def check_mail_command(interaction: discord.Interaction):
+    await interaction.response.send_message("📬 Gmail을 검사 중입니다...", ephemeral=True)
+    user = await bot.fetch_user(onaholy)
+    new_subjects = await check_fanbox_mail_and_debug()
+    if new_subjects:
+        for subj in new_subjects:
+            await user.send(f"[ 새 후원자 : \"{subj}\" ]")
+    else:
+        await user.send("[ 새 후원자 없음 ]")
 
 # ====================================== [봇 실행] ======================================
 bot.run(bot_token)
