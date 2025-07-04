@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "148"
+version = "149"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -106,6 +106,7 @@ async def periodic_instance_check():
 async def check_fanbox_mail_and_debug():
     global last_uid
     matched_subjects = []
+    inspected_subjects = []
     try:
         mail = imaplib.IMAP4_SSL("imap.gmail.com")
         mail.login(gmail_user, gmail_pass)
@@ -136,7 +137,7 @@ async def check_fanbox_mail_and_debug():
             subject = ''.join(subject_parts).strip()
 
             keyword_hit = any(k in subject for k in keywords)
-            await user.send(f"[ 제목 확인 ]\n{subject}\n➡ 조건 만족 여부: {'✅' if keyword_hit else '❌'}")
+            inspected_subjects.append(f"{'✅' if keyword_hit else '❌'} {subject}")
 
             if keyword_hit:
                 if "님이 새로 가입했습니다" in subject:
@@ -154,6 +155,12 @@ async def check_fanbox_mail_and_debug():
                         save_supporters()
                         matched_subjects.append(full)
                         last_uid = i
+
+        if inspected_subjects:
+            subject_block = "\n".join(inspected_subjects)
+            await user.send(f"[ 검사된 메일 제목 목록 ]\n```\n{subject_block}\n```")
+        else:
+            await user.send("📪 검사된 메일이 없습니다.")
 
     except Exception as e:
         user = await bot.fetch_user(onaholy)
