@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "138"
+version = "139"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -39,7 +39,7 @@ except Exception as e:
 # ====================================== [시스템 시작 시간] ======================================
 boot_time_obj = datetime.utcnow()
 boot_time = boot_time_obj.timestamp()
-boot_display = f"{boot_time_obj.day}일 {boot_time_obj.hour}시 {boot_time_obj.minute}분 {boot_time_obj.second}초"
+boot_display = f"{boot_time_obj.day}일 {boot_time_obj.hour}시 {boot_time_obj.minute}분"
 
 # ====================================== [프로그램 데이터 저장] ======================================
 supporter_list = []
@@ -74,8 +74,7 @@ async def on_ready():
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"[ 시작 시간 : {boot_time} ]")
-        await user.send(f"[ 시작 표시 : {boot_display} ]")
+        await user.send(f"[ 시작 시간 : {boot_display} ]")
         await user.send(f"[ 리워드 봇 버전 : {version} ]")
     except Exception:
         pass
@@ -83,23 +82,20 @@ async def on_ready():
 # ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
 async def check_older_instances():
     user = await bot.fetch_user(onaholy)
-    async for msg in user.history(limit=30):
+    async for msg in user.history(limit=200):
         if msg.author.id != bot.user.id:
             continue
 
         match = re.search(r"\[ 시작 시간 : ([\d\.]+) \]", msg.content)
-        if not match:
-            continue
-
-        try:
-            previous_time = float(match.group(1))
-        except:
-            continue
-
-        if previous_time > boot_time:
-            await user.send("[ 기존 인스턴스가 더 최신입니다. 자동 종료합니다. ]")
-            await bot.close()
-            os._exit(0)
+        if match:
+            try:
+                previous_time = float(match.group(1))
+                if previous_time > boot_time:
+                    await user.send("[ 인스턴스 중복으로 종료됨: 더 최신 인스턴스 감지 ]")
+                    await bot.close()
+                    os._exit(0)
+            except:
+                continue
 
 # ====================================== [Gmail 검색] ======================================
 async def check_fanbox_mail_and_debug():
