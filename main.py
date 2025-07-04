@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "139"
+version = "166"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -163,11 +163,11 @@ async def on_message(message):
     if isinstance(message.channel, discord.DMChannel):
         if message.author.id == onaholy:
             content = message.content.strip().lower()
-            if content == "리워드 종료":
+            if content in ["종료", "리셋", "/종료", "/리셋", "/리워드 종료", "리워드 종료"]:
                 await message.channel.send("🔒 모든 인스턴스 종료됨.")
                 await bot.close()
                 os._exit(0)
-            elif content in ["list", "/list", "/리스트"]:
+            elif content in ["list", "/list", "리스트", "/리스트", "명단"]:
                 if not supporter_list:
                     await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
                 else:
