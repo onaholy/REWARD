@@ -66,11 +66,11 @@ intents.dm_messages = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 last_uid = None
 
-# ====================================== [중복 실행 검증] ======================================
+# ====================================== [봇 시작 시] ======================================
 @bot.event
 async def on_ready():
     load_supporters()
-    await check_older_instances()
+    periodic_instance_check.start()
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
@@ -78,17 +78,23 @@ async def on_ready():
     except Exception:
         pass
 
-# ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
-async def check_older_instances():
+# ====================================== [7초마다 인스턴스 중복 확인] ======================================
+@tasks.loop(seconds=7)
+async def periodic_instance_check():
     user = await bot.fetch_user(onaholy)
     async for msg in user.history(limit=200):
         if msg.author.id != bot.user.id:
             continue
+        if "[ 리워드 봇 버전 :" not in msg.content:
+            continue
 
-        match = re.search(r"\[ 인스턴스 식별 : ([\d\.]+) \]", msg.content)
+        match = re.search(r"시작 시간 : (\d+)일 (\d+)시 (\d+)분", msg.content)
         if match:
             try:
-                previous_time = float(match.group(1))
+                day, hour, minute = map(int, match.groups())
+                now = datetime.utcnow()
+                previous = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+                previous_time = previous.timestamp()
                 if previous_time > boot_time:
                     await user.send("[ 인스턴스 중복으로 종료됨: 더 최신 인스턴스 감지 ]")
                     await bot.close()
@@ -157,7 +163,7 @@ async def monitor_gmail_loop():
         user = await bot.fetch_user(onaholy)
         await user.send(f"❌ FANBOX 루프 오류:\n```{str(e)}```")
 
-# ====================================== [onaholy가 DM으로 list 입력 시 안내 보내기] ======================================
+# ====================================== [onaholy가 DM으로 명령어 입력 시 처리] ======================================
 @bot.event
 async def on_message(message):
     if isinstance(message.channel, discord.DMChannel):
@@ -167,7 +173,7 @@ async def on_message(message):
                 await message.channel.send("🔒 모든 인스턴스 종료됨.")
                 await bot.close()
                 os._exit(0)
-            elif content in ["list", "/list", "리스트", "/리스트", "명단"]:
+            elif content in ["list", "리스트", "명단", "/list", "/리스트"]:
                 if not supporter_list:
                     await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
                 else:
@@ -181,7 +187,8 @@ async def on_message(message):
 @bot.tree.command(name="list", description="리워드 버스의 커맨드 목록을 보여줍니다.")
 async def list_command(interaction: discord.Interaction):
     await interaction.response.send_message(
-        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `DM으로 list 또는 /리스트 입력 시 후원자 명단 출력`", ephemeral=True
+        "✅ 사용 가능한 명령어:\n- `/list`\n- `/reward`\n- `DM으로 list, 리스트, 명단 등 입력 시 후원자 명단 출력`",
+        ephemeral=True
     )
 
 @bot.tree.command(name="reward", description="리워드 관련 기능을 실행합니다.")
