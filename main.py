@@ -13,9 +13,10 @@ import email
 import json
 from email.header import decode_header
 from datetime import datetime, timezone
+import time
 
 # ====================================== [main.py코드 버전] ======================================
-version = "153"
+version = "154"
 
 # ====================================== [파일 저장 경로 설정] ======================================
 PERSISTENT_PATH = "/var/data"
@@ -76,6 +77,7 @@ last_uid = None
 # ====================================== [봇 시작 시] ======================================
 @bot.event
 async def on_ready():
+    print(f"[{datetime.now()}] ✅ 디스코드 로그인 완료: {bot.user} ({bot.user.id})")
     load_supporters()
     periodic_instance_check.start()
     monitor_gmail_loop.start()
@@ -105,7 +107,7 @@ async def periodic_instance_check():
                 if previous_time > boot_time:
                     await user.send("[ 인스턴스 중복으로 종료됨: 더 최신 인스턴스 감지 ]")
                     await bot.close()
-                    os._exit(0)
+                    return
             except:
                 continue
 
@@ -214,7 +216,7 @@ async def on_message(message):
         if content in ["종료", "리셋", "/종료", "/리셋", "/리워드 종료", "리워드 종료"]:
             await message.channel.send("🔒 모든 인스턴스 종료됨.")
             await bot.close()
-            os._exit(0)
+            return
         elif content in ["리스트 리셋"]:
             supporter_list.clear()
             save_supporters()
@@ -256,4 +258,14 @@ async def checkmail_command(interaction: discord.Interaction):
         await user.send("[ 새 후원자 없음 ]")
 
 # ====================================== [봇 실행] ======================================
-bot.run(bot_token)
+while True:
+    try:
+        print(f"[{datetime.now()}] ▶️ 봇 실행 시작")
+        bot.run(bot_token)
+        break
+    except discord.errors.HTTPException as e:
+        if e.status == 429:
+            print("⏳ 너무 많은 요청으로 로그인 차단됨. 60초 후 재시도...")
+            time.sleep(60)
+        else:
+            raise
