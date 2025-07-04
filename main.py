@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
-version = "145"
+version = "147"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -135,15 +135,25 @@ async def check_fanbox_mail_and_debug():
                     subject_parts.append(part)
             subject = ''.join(subject_parts).strip()
 
-            keyword_hit = any(keyword in subject for keyword in keywords)
+            keyword_hit = any(k in subject for k in keywords)
             await user.send(f"[ 제목 확인 ]\n{subject}\n➡ 조건 만족 여부: {'✅' if keyword_hit else '❌'}")
 
             if keyword_hit:
-                if subject not in supporter_list:
-                    supporter_list.append(subject)
-                    save_supporters()
-                matched_subjects.append(subject)
-                last_uid = i
+                if "님이 새로 가입했습니다" in subject:
+                    match = re.search(r"회원! .*? (.*?)님이", subject)
+                    platform = "Patreon"
+                else:
+                    match = re.search(r"^(.*?) 님이", subject)
+                    platform = "Fanbox"
+
+                if match:
+                    name = match.group(1).strip()
+                    full = f"{name} ({platform})"
+                    if full not in supporter_list:
+                        supporter_list.append(full)
+                        save_supporters()
+                        matched_subjects.append(full)
+                        last_uid = i
 
     except Exception as e:
         user = await bot.fetch_user(onaholy)
@@ -177,6 +187,10 @@ async def on_message(message):
                 await message.channel.send("🔒 모든 인스턴스 종료됨.")
                 await bot.close()
                 os._exit(0)
+            elif content in ["리스트 리셋"]:
+                supporter_list.clear()
+                save_supporters()
+                await message.channel.send("📛 후원자 목록이 초기화되었습니다.")
             elif content in ["list", "리스트", "명단", "/list", "/리스트"]:
                 if not supporter_list:
                     await message.channel.send("📭 저장된 후원자 정보가 없습니다.")
