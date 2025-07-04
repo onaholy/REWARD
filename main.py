@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "166"
+version = "139"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -75,7 +75,7 @@ async def on_ready():
     try:
         user = await bot.fetch_user(onaholy)
         await user.send(f"[ 리워드 봇 버전 : {version}        -         시작 시간 : {boot_display} ]")
-            except Exception:
+    except Exception:
         pass
 
 # ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
@@ -147,7 +147,7 @@ async def monitor_gmail_loop():
     await bot.wait_until_ready()
     try:
         user = await bot.fetch_user(onaholy)
-                new_subjects = await check_fanbox_mail_and_debug()
+        new_subjects = await check_fanbox_mail_and_debug()
         if new_subjects:
             for subj in new_subjects:
                 await user.send(f"[ 새 후원자 : \"{subj}\" ]")
