@@ -15,7 +15,7 @@ from email.header import decode_header
 from datetime import datetime
 
 # ====================================== [main.py코드 버전] ======================================
-version = "136"
+version = "137"
 
 # ====================================== [환경변수에서 값 불러오기] ======================================
 try:
@@ -74,7 +74,8 @@ async def on_ready():
     monitor_gmail_loop.start()
     try:
         user = await bot.fetch_user(onaholy)
-        await user.send(f"[ 시작 시간 : {boot_display} ]")
+        await user.send(f"[ 시작 시간 : {boot_time} ]")
+        await user.send(f"[ 시작 표시 : {boot_display} ]")
         await user.send(f"[ 리워드 봇 버전 : {version} ]")
     except Exception:
         pass
@@ -82,23 +83,23 @@ async def on_ready():
 # ====================================== [기존 인스턴스와 시작 시간 비교] ======================================
 async def check_older_instances():
     user = await bot.fetch_user(onaholy)
-    async for msg in user.history(limit=100):
+    async for msg in user.history(limit=30):
         if msg.author.id != bot.user.id:
             continue
-        if "[ 시작 시간 :" not in msg.content:
+
+        match = re.search(r"\[ 시작 시간 : ([\d\.]+) \]", msg.content)
+        if not match:
             continue
 
-        match = re.search(r"\[ 시작 시간 : ([^\]]+) \]", msg.content)
-        if match:
-            previous_time_str = match.group(1)
-            try:
-                previous_time = float(previous_time_str)
-            except:
-                continue
-            if previous_time > boot_time:
-                await user.send("[ 기존 인스턴스가 더 최신입니다. 자동 종료합니다. ]")
-                await bot.close()
-                os._exit(0)
+        try:
+            previous_time = float(match.group(1))
+        except:
+            continue
+
+        if previous_time > boot_time:
+            await user.send("[ 기존 인스턴스가 더 최신입니다. 자동 종료합니다. ]")
+            await bot.close()
+            os._exit(0)
 
 # ====================================== [Gmail 검색] ======================================
 async def check_fanbox_mail_and_debug():
