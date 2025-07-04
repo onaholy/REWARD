@@ -12,7 +12,7 @@ import imaplib
 import email
 import json
 from email.header import decode_header
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ====================================== [main.py코드 버전] ======================================
 version = "141"
@@ -37,7 +37,7 @@ except Exception as e:
     sys.exit(1)
 
 # ====================================== [시스템 시작 시간] ======================================
-boot_time_obj = datetime.utcnow()
+boot_time_obj = datetime.now(timezone.utc)
 boot_time = boot_time_obj.timestamp()
 boot_display = f"{boot_time_obj.day}일 {boot_time_obj.hour}시 {boot_time_obj.minute}분"
 
@@ -92,7 +92,7 @@ async def periodic_instance_check():
         if match:
             try:
                 day, hour, minute = map(int, match.groups())
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 previous = now.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
                 previous_time = previous.timestamp()
                 if previous_time > boot_time:
